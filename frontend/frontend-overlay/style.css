@@ -34,27 +34,70 @@ html, body {
 }
 
 .alert-card {
-  border-radius: 18px;
-  padding: 40px 46px;
+  position: relative;
+  border-radius: 20px;
+  padding: 34px 44px 34px 34px;
   color: var(--text-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  overflow: hidden;
   animation: slide-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   box-shadow: 0 2px 4px rgba(20, 20, 15, 0.06), 0 20px 44px rgba(20, 20, 15, 0.16);
 }
 
-.alert-card.leaving {
-  animation: slide-out 0.3s ease forwards;
+/* Aksen bar tipis di tepi atas — pengganti garis strip kiri, tetap
+   kompatibel sama border-radius penuh di 4 sisi (overflow:hidden di atas
+   yang motong bar ini biar ngikutin lengkungan sudut kartu). */
+.alert-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
 }
 
 .alert-card--safe {
   background: var(--accent-safe-bg);
-  border-left: 10px solid var(--accent-safe);
-  border-radius: 0 18px 18px 0;
+}
+
+.alert-card--safe::before {
+  background: var(--accent-safe);
 }
 
 .alert-card--blocked {
   background: var(--accent-danger-bg);
-  border-left: 10px solid var(--accent-danger);
-  border-radius: 0 18px 18px 0;
+}
+
+.alert-card--blocked::before {
+  background: var(--accent-danger);
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.alert-card--safe .alert-icon {
+  background: rgba(31, 157, 118, 0.14);
+  color: var(--accent-safe);
+}
+
+.alert-card--blocked .alert-icon {
+  background: rgba(214, 72, 74, 0.14);
+  color: var(--accent-danger);
+}
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .alert-top {

@@ -17,15 +17,23 @@ function formatAmount(amount) {
   return `Rp${Number(amount).toLocaleString("id-ID")}`;
 }
 
+// Icon badge bulat di tiap kartu — pengganti garis strip warna di kiri,
+// biar kartunya bisa rounded penuh 4 sisi tapi tetap ada aksen visual.
+const ICON_CHECK = `<svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.75" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_BLOCKED = `<svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.75" fill="none" stroke-linecap="round"/></svg>`;
+
 function renderSafeAlert(comment) {
   const card = document.createElement("div");
   card.className = "alert-card alert-card--safe";
   card.innerHTML = `
-    <div class="alert-top">
-      <span class="alert-donator">${escapeHtml(comment.donator || "Anonim")}</span>
-      <span class="alert-amount">${formatAmount(comment.amount)}</span>
+    <div class="alert-icon">${ICON_CHECK}</div>
+    <div class="alert-body">
+      <div class="alert-top">
+        <span class="alert-donator">${escapeHtml(comment.donator || "Anonim")}</span>
+        <span class="alert-amount">${formatAmount(comment.amount)}</span>
+      </div>
+      <p class="alert-message">${escapeHtml(comment.message)}</p>
     </div>
-    <p class="alert-message">${escapeHtml(comment.message)}</p>
   `;
   return card;
 }
@@ -35,11 +43,14 @@ function renderBlockedAlert(comment) {
   const card = document.createElement("div");
   card.className = "alert-card alert-card--blocked";
   card.innerHTML = `
-    <div class="alert-top">
-      <span class="alert-donator">Komentar diblokir</span>
+    <div class="alert-icon">${ICON_BLOCKED}</div>
+    <div class="alert-body">
+      <div class="alert-top">
+        <span class="alert-donator">Komentar diblokir</span>
+      </div>
+      <p class="alert-blocked-label">Terindikasi promosi judi online</p>
+      <p class="alert-score">Skor deteksi: ${scorePercent}%</p>
     </div>
-    <p class="alert-blocked-label">Terindikasi promosi judi online</p>
-    <p class="alert-score">Skor deteksi: ${scorePercent}%</p>
   `;
   return card;
 }
