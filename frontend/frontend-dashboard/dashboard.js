@@ -47,7 +47,10 @@ function flashStat(node, newValue) {
 }
 
 function formatTime(isoString) {
-  const date = new Date(isoString);
+  // Backend nyimpen created_at pakai UTC tapi string-nya gak ada suffix 'Z'
+  // (naive) — tambahin di sini biar browser ngerti itu UTC dan otomatis
+  // dikonversi ke timezone lokal viewer (WIB dst), bukan ditampilin apa adanya.
+  const date = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
   return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
@@ -133,7 +136,10 @@ function bucketKeyFromIso(isoString, intervalMinutes) {
 }
 
 function bucketLabel(bucketKey) {
-  return new Date(bucketKey).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  // Sama kayak formatTime() — bucketKey juga naive UTC, tambahin 'Z' biar
+  // label sumbu-X di grafik ditampilin dalam jam lokal viewer.
+  const key = bucketKey.endsWith("Z") ? bucketKey : `${bucketKey}Z`;
+  return new Date(key).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 
 async function loadInitialTimeseries() {
