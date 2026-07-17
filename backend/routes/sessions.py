@@ -72,6 +72,16 @@ def create_session(payload: SessionCreateRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Idempotent: kalau streamKey ini UDAH pernah didaftarin, balikin session
+    # yang lama (bukan bikin baru). Ini yang bikin streamer yang lupa link
+    # dashboard-nya bisa "recover" cukup dengan paste ulang URL Saweria mereka
+    # -- sekaligus nyegah numpuknya session duplikat kayak yang pernah kejadian.
+    existing_session = database.find_session_by_stream_key(stream_key)
+    if existing_session:
+        logger.info(f"streamKey ini udah terdaftar, balikin session lama: {existing_session['id']}")
+        overlay_url = f"{OVERLAY_BASE_URL}?session={existing_session['id']}"
+        return SessionCreateResponse(session_id=existing_session["id"], overlay_url=overlay_url)
+
     encrypted_stream_key = encrypt_value(stream_key)
 
     session_id = database.create_session(

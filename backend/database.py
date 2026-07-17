@@ -99,6 +99,31 @@ def get_all_sessions() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def find_session_by_stream_key(stream_key_plain: str) -> Optional[dict]:
+    """
+    Cari session yang UDAH ADA berdasarkan streamKey plaintext — dipakai buat
+    idempotent registration (POST /sessions gak bikin duplikat kalau streamer
+    daftar ulang pakai streamKey yang sama, misal karena lupa link dashboard).
+
+    streamKey disimpan terenkripsi pakai Fernet, yang NON-DETERMINISTIC (hasil
+    enkripsi beda tiap kali walau plaintext-nya sama) — jadi gak bisa langsung
+    "WHERE stream_key = ?". Decrypt tiap baris dulu, baru dibandingin plaintext.
+    """
+    from services.crypto_utils import decrypt_value
+
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM sessions").fetchall()
+
+    for row in rows:
+        try:
+            if decrypt_value(row["stream_key"]) == stream_key_plain:
+                return dict(row)
+        except Exception:
+            continue  # baris rusak/gak bisa didecrypt, skip aja
+
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Comments
 # ---------------------------------------------------------------------------
