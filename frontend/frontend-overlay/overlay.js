@@ -28,10 +28,11 @@ function renderSafeAlert(comment) {
   card.innerHTML = `
     <div class="alert-icon">${ICON_CHECK}</div>
     <div class="alert-body">
-      <div class="alert-top">
+      <p class="alert-top">
         <span class="alert-donator">${escapeHtml(comment.donator || "Anonim")}</span>
+        baru saja memberikan
         <span class="alert-amount">${formatAmount(comment.amount)}</span>
-      </div>
+      </p>
       <p class="alert-message">${escapeHtml(comment.message)}</p>
     </div>
   `;
