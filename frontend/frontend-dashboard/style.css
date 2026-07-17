@@ -279,6 +279,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.col-top-word {
+  font-family: var(--font-mono);
+  color: var(--accent-danger);
+  font-size: 12.5px;
+}
+
 .col-message {
   max-width: 360px;
   word-break: break-word;

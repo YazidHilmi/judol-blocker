@@ -89,3 +89,54 @@ def get_combined_judol_score(message: str, donator: str | None = None) -> dict:
             best_field = field_name
 
     return {"score": best_score, "flagged_field": best_field}
+
+
+TOP_WORD_DROP_THRESHOLD = 0.20  # kata dianggap "berpengaruh" kalau nurunin skor >= 20%
+TOP_WORD_MAX_COUNT = 3
+
+
+def explain_top_word(text: str, baseline_score: float) -> list[str] | None:
+    """
+    Explainability sederhana pakai metode occlusion: buang 1 kata dari 'text',
+    minta model nilai ulang sisa kalimatnya. Kata yang bikin skor turun paling
+    banyak pas dibuang = kata yang paling "bertanggung jawab" atas skor tinggi.
+
+    Cuma masuk akal dipanggil untuk komentar yang statusnya 'diblokir' — dipanggil
+    dari routes/ingest.py, bukan dari sini, biar fungsi ini tetap murni.
+
+    Balikin list kata (maks TOP_WORD_MAX_COUNT, cuma yang penurunan skornya
+    >= TOP_WORD_DROP_THRESHOLD), diurutkan dari paling berpengaruh. None kalau
+    gak ada kata yang cukup signifikan atau gagal (dianggap non-fatal, biar
+    /ingest tetap sukses walau explainability-nya gagal).
+    """
+    words = text.split()
+    if len(words) <= 1:
+        return words or None
+
+    # Bikin varian kalimat per kata yang dibuang, kirim SEKALIGUS dalam 1 batch
+    # request (bukan N request terpisah) biar murah.
+    variants = [" ".join(words[:i] + words[i + 1:]) for i in range(len(words))]
+
+    try:
+        response = httpx.post(
+            f"{MODEL_SERVICE_URL}/predict",
+            json={"texts": variants},
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        predictions = response.json().get("predictions")
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+        logger.warning(f"Gagal explain_top_word (non-fatal, di-skip): {e}")
+        return None
+
+    if not predictions or len(predictions) != len(words):
+        return None
+
+    drops = [
+        (word, baseline_score - prediction["judol_score"])
+        for word, prediction in zip(words, predictions)
+    ]
+    drops.sort(key=lambda pair: pair[1], reverse=True)
+
+    significant = [word for word, drop in drops if drop >= TOP_WORD_DROP_THRESHOLD]
+    return significant[:TOP_WORD_MAX_COUNT] if significant else None

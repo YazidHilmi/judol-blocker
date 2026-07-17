@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 import database
 from models import IngestRequest, IngestResponse
 from services.decision_logic import decide_status
-from services.model_client import ModelServiceError, get_combined_judol_score
+from services.model_client import ModelServiceError, explain_top_word, get_combined_judol_score
 from services.websocket_manager import manager
 
 logger = logging.getLogger("route-ingest")
@@ -34,6 +34,14 @@ async def ingest_comment(payload: IngestRequest):
     # 2. Decision logic
     status = decide_status(judol_score)
 
+    # 2b. Explainability (occlusion) — cuma buat yang diblokir, biar gak nambah
+    # beban model-service buat komentar aman yang gak perlu dijelasin.
+    top_word = None
+    if status == "diblokir":
+        flagged_text = payload.message if flagged_field == "message" else payload.donator
+        if flagged_text:
+            top_word = explain_top_word(flagged_text, judol_score)
+
     # 3. Simpan ke DB
     comment = database.insert_comment(
         session_id=payload.session_id,
@@ -42,6 +50,7 @@ async def ingest_comment(payload: IngestRequest):
         amount=payload.amount,
         score=judol_score,
         status=status,
+        top_word=top_word,
     )
 
     # 4. Broadcast ke overlay + dashboard.

@@ -88,6 +88,7 @@ function addFeedRow(comment) {
     <td class="col-message">${escapeHtml(truncate(comment.message))}</td>
     <td class="col-score">${(comment.score * 100).toFixed(1)}%</td>
     <td><span class="${statusClass}">${statusLabel}</span></td>
+    <td class="col-top-word">${escapeHtml(comment.top_word || "-")}</td>
   `;
 
   el.feedBody.prepend(row);

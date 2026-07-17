@@ -35,12 +35,19 @@ def init_db():
                 amount        INTEGER,
                 score         REAL,
                 status        TEXT NOT NULL,
+                top_word      TEXT,
                 reviewed_by   TEXT,
                 reviewed_at   TEXT,
                 created_at    TEXT NOT NULL,
                 FOREIGN KEY (session_id) REFERENCES sessions(id)
             )
         """)
+        # Kolom top_word ditambahin belakangan — kalau DB lama udah ada dari
+        # sebelum fitur ini, CREATE TABLE IF NOT EXISTS di atas gak nambahin
+        # kolom baru ke tabel yang udah ada. Tambahin manual kalau belum ada.
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(comments_log)")}
+        if "top_word" not in existing_columns:
+            conn.execute("ALTER TABLE comments_log ADD COLUMN top_word TEXT")
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_comments_session
             ON comments_log(session_id)
@@ -103,19 +110,21 @@ def insert_comment(
     amount: Optional[int],
     score: float,
     status: str,
+    top_word: Optional[list[str]] = None,
 ) -> dict:
     """Simpan 1 komentar yang udah diproses (ada score & status-nya), balikin data lengkapnya."""
     comment_id = str(uuid.uuid4())
     created_at = datetime.utcnow().isoformat()
+    top_word_str = ", ".join(top_word) if top_word else None
 
     with get_connection() as conn:
         conn.execute(
             """
             INSERT INTO comments_log
-                (id, session_id, donator, message, amount, score, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, session_id, donator, message, amount, score, status, top_word, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (comment_id, session_id, donator, message, amount, score, status, created_at),
+            (comment_id, session_id, donator, message, amount, score, status, top_word_str, created_at),
         )
         conn.commit()
 
@@ -127,6 +136,7 @@ def insert_comment(
         "amount": amount,
         "score": score,
         "status": status,
+        "top_word": top_word_str,
         "created_at": created_at,
     }
 

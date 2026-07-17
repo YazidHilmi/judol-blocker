@@ -28,6 +28,7 @@ class IngestResponse(BaseModel):
     amount: Optional[int]
     score: float
     status: str
+    top_word: Optional[str] = None
     created_at: str
 
 

@@ -2,7 +2,7 @@
 
 Dokumen kondisi terkini project. Paste ke chat/agent baru biar langsung paham konteks penuh tanpa baca ulang history.
 
-**Terakhir diupdate:** 2026-07-16
+**Terakhir diupdate:** 2026-07-17
 
 ---
 
@@ -14,9 +14,15 @@ Sistem yang mendeteksi & memblokir komentar/pesan donasi bermuatan promosi judi 
 - Role Tyler: **backend** (model dikerjakan partner)
 - Model final: **IndoBERT** base, 2 label (`Normal`=0, `Judol`=1), fine-tuned partner via CRISP-DM pipeline
 
-## Status keseluruhan: SEMUA TAHAP CODING SELESAI ✅
+## Status keseluruhan: SISTEM TERBUKTI JALAN END-TO-END DENGAN DONASI SAWERIA ASLI ✅
 
-Yang tersisa bukan coding, tapi **verifikasi integrasi Saweria asli + OBS** (cuma bisa dites Tyler pakai akun Saweria sendiri) + persiapan demo.
+Integrasi Saweria asli + OBS **sudah diverifikasi jalan** (2026-07-17) pakai donasi & replay alert beneran, bukan simulasi doang. Sisa kerjaan: fitur explainability (kata pemicu judol) yang lagi dikerjain, + persiapan demo.
+
+## Git
+
+Project ini **udah jadi git repo** (`git init` di 2026-07-17). Ada 1 commit checkpoint (`"Checkpoint: sistem judol blocker jalan end-to-end..."`) di titik sistem udah kebukti jalan sempurna — kalau ada perubahan berikutnya bikin rusak, `git checkout -- .` buat balikin ke situ, atau `git diff` buat liat apa yang berubah dulu.
+
+`.gitignore` exclude: `.env` (secret), `venv/`, `node_modules/`, `judol_blocker.db`, dan **file model (`*.safetensors`, 475MB)** — model gak pernah diedit jadi gak perlu di-track, dan kegedean buat git normal (GitHub limit 100MB/file). Kalau clone repo ini di laptop lain, taro manual file model dari partner ke `model-service/model/`.
 
 ---
 
@@ -80,9 +86,10 @@ Keputusan sadar: pakai **capability URL** (kayak Google Docs share-link), bukan 
 - `config.js` — config terpusat
 
 ### Adapter (`adapter/`)
-- `index.js` — Node.js, multi-session (polling based), forward donasi ke `/ingest`
-- `test-fake-donation.js` — kirim donasi palsu via `sendFakeDonation()` buat testing
+- `index.js` — Node.js, multi-session (polling based), forward donasi ke `/ingest`. **PENTING:** TIDAK pakai class `Client` dari package npm `saweria` — connect manual pakai `ws` langsung ke `wss://events.saweria.co/stream?streamKey=...`, karena library `saweria` v2.0.1 ada bug (lihat bagian bug di bawah)
+- `test-fake-donation.js` — kirim donasi palsu via `sendFakeDonation()` buat testing (masih pakai package `saweria` buat bagian ini doang, cuma buat trigger fake donation, bukan buat listen)
 - `package.json`, `.env`
+- Dedup donasi: kalau donation id yang sama masuk berkali-kali dalam **8 detik**, cuma diproses sekali (Saweria replay/spam-klik bisa ngirim event sama berkali-kali beruntun)
 
 ### Model service (`model-service/`)
 - `model_service.py` — FastAPI, endpoint `/predict` + `/health`, preprocessing identik dengan training (`clean_text` → `normalize_emoji` → `normalize_unicode`)
@@ -136,11 +143,20 @@ INTERNAL_API_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
 
 ---
 
-## Bug yang sudah difix (sesi 2026-07-16)
+## Bug yang sudah difix (sesi 2026-07-16 & 2026-07-17)
 
+**Sesi 2026-07-16:**
 1. `simulator.py` crash di Windows console kalau komentar ada emoji → force stdout UTF-8
 2. **KRITIS:** `frontend-overlay/index.html` gak load `config.js` → overlay gak pernah connect WebSocket (bakal blank total di OBS). Fixed: tambah `<script src="config.js">`
-3. **KRITIS:** `adapter/index.js` + `test-fake-donation.js` salah import `Client` dari package `saweria` (`const { Client }` → harusnya `const Client = require("saweria")`, karena package pakai `export =`). Tanpa fix ini adapter gak pernah bisa connect ke Saweria
+3. `adapter/index.js` + `test-fake-donation.js` upgrade package `saweria` v1.3.2 → v2.0.1 (server lama `stream.saweria.co` udah mati, pindah ke `events.saweria.co`)
+
+**Sesi 2026-07-17 (paling kritis — donasi Saweria asli gak pernah kedetect):**
+4. **KRITIS PALING BESAR:** package npm `saweria@2.0.1` ada bug internal — dia cek `data.type === "donation"` (singular), padahal Saweria beneran ngirim `data.type === "donations"` (plural, ada 's') buat donasi baru. Gara-gara typo 1 huruf di library itu, **semua donasi asli diam-diam diabaikan, gak ada error/log sama sekali**. Ketauan cuma lewat raw WebSocket debug listener manual (connect langsung pakai `ws`, log semua raw message). Fix: `adapter/index.js` sekarang connect manual (skip class `Client`), dan nangkep **DUA-DUANYA** (`"donation"` dipakai buat event replay alert, `"donations"` dipakai buat donasi baru asli)
+5. `frontend-overlay/config.js` + `frontend-dashboard/config.js` port ke-ubah ke `8002` (harusnya `8000`) — entah kenapa/kapan berubah, gak ketauan sumbernya. Overlay/dashboard connect ke port kosong, WebSocket gak pernah nyambung padahal backend sehat. Fixed balikin ke `8000`.
+6. Banyak proses `node.exe` zombie numpuk dari berkali-kali restart testing — bikin bingung koneksi mana yang aktif. Solusi: `taskkill /F /IM node.exe` buat bersihin total sebelum restart adapter.
+7. Duplikat registrasi session dengan streamKey asli yang sama (sampai 3-4x) bikin backend overload (banyak WS connection + model-service call bersamaan → timeout). Dibersihin, disisain 1 session aktif aja.
+
+**Cara debug yang kepake buat nemuin bug #4** (berguna kalau ada masalah serupa lagi): bikin script Node.js kecil pakai package `ws` langsung, connect ke `wss://events.saweria.co/stream?streamKey=<key>`, log SEMUA raw message yang masuk apa adanya (tanpa lewat library `saweria`). Ini nunjukin persis format asli yang dikirim Saweria, gak ketebak dari baca kode doang.
 
 ## Isu model (BUKAN bug, keterbatasan akurasi)
 
@@ -152,14 +168,19 @@ Format standar HuggingFace `save_pretrained()`. `training_args.bin` tidak dipaka
 
 ---
 
-## Yang belum kelar / langkah berikutnya (urut prioritas)
+## Yang udah kebukti jalan (2026-07-17, pakai Saweria asli + OBS beneran)
 
-1. **🔴 Tes Saweria asli + OBS (belum pernah dites, cuma Tyler yang bisa):**
-   - Daftar pakai streamKey Saweria **asli** lewat `register.html`
-   - Jalanin adapter (`npm start`) → cek muncul log `"Terhubung ke Saweria, menunggu donasi..."`
-   - Tempel URL overlay pengganti ke OBS Browser Source
-   - Kirim test donation dari Saweria → cek muncul di overlay & dashboard, cek komen judol beneran kehalau
-   - **Ini risiko terbesar yang belum ketutup** — semua fitur lain sudah kebukti via simulasi
+- ✅ Daftar via `register.html` pakai streamKey Saweria asli
+- ✅ Adapter connect ke Saweria asli (`wss://events.saweria.co/stream`), nangkep donasi asli DAN replay alert
+- ✅ Donasi asli (`hilmialam`, "hari ini bosku, maxwin auto jp") berhasil diklasifikasi diblokir, score ~100%
+- ✅ Overlay OBS nampilin alert dari data Saweria asli (bukan simulasi) — dites pakai Browser Source beneran + webcam
+- ✅ Dashboard real-time (kartu, grafik, tabel) update dari data asli
+- ✅ Ukuran alert overlay udah digedein buat kanvas 1920x1080 (awalnya didesain kekecilan buat testing kecil)
+
+## Sedang dikerjakan
+
+1. **🟡 Fitur explainability "kata pemicu"** — nambah kolom baru di tabel dashboard nunjukin kata yang paling kuat bikin komentar terdeteksi judol. Metode: **occlusion** (buang kata satu-satu, lihat penurunan skor terbesar), bukan SHAP/Integrated Gradients (terlalu berat buat model-service 1-worker CPU). Cuma jalan buat komentar `status=diblokir` (skip yang aman). Ambil sampai 3 kata kalau penurunan skornya di atas threshold **20%**, kalau cuma 1 kata yang dominan ya tampil 1 aja. **Sengaja gak ditampilin di overlay** (cuma dashboard) — biar gak bocorin sebagian kata judol ke penonton lewat overlay publik.
+   - Rencana perubahan: `model_client.py` (fungsi `explain_top_word()`), `ingest.py`, `database.py` (kolom baru `top_word`), `models.py`, `dashboard.js`+`index.html` (kolom baru "Kata Pemicu")
 2. **🟢 Persiapan demo:** skenario komentar, jawaban pertanyaan juri, slide/narasi
 
 ## Keputusan desain final (jangan diulang tanya)
