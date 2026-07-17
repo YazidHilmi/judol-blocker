@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Judol Blocker — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Judol Blocker</h1>
+          <p class="session-label">Session: <span id="session-id-label">—</span></p>
+        </div>
+      </div>
+      <div class="live-status">
+        <span id="live-dot" class="live-dot"></span>
+        <span id="live-text">Menghubungkan…</span>
+      </div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <p class="stat-label">Total komentar masuk</p>
+        <p class="stat-value" id="stat-total">0</p>
+      </article>
+      <article class="stat-card stat-card--warn">
+        <p class="stat-label">Terdeteksi judi online</p>
+        <p class="stat-value" id="stat-terdeteksi">0</p>
+      </article>
+      <article class="stat-card stat-card--danger">
+        <p class="stat-label">Berhasil diblokir</p>
+        <p class="stat-value" id="stat-diblokir">0</p>
+      </article>
+      <article class="stat-card stat-card--safe">
+        <p class="stat-label">Aman / lolos</p>
+        <p class="stat-value" id="stat-aman">0</p>
+      </article>
+    </section>
+
+    <section class="chart-section">
+      <div class="feed-header">
+        <h2>Tren komentar real-time</h2>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-dot legend-dot--total"></span>Komentar masuk</span>
+          <span class="legend-item"><span class="legend-dot legend-dot--diblokir"></span>Terdeteksi judol</span>
+        </div>
+      </div>
+      <canvas id="trend-chart" class="trend-chart"></canvas>
+    </section>
+
+    <section class="feed">
+      <div class="feed-header">
+        <h2>Komentar real-time</h2>
+        <span class="feed-hint">Baris baru muncul otomatis</span>
+      </div>
+      <div class="feed-table-wrap">
+        <table class="feed-table">
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th>Pengirim</th>
+              <th>Komentar</th>
+              <th>Skor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="feed-body">
+            <tr class="feed-empty-row">
+              <td colspan="5">Belum ada komentar masuk.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

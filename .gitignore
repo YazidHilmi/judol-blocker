@@ -1,0 +1,23 @@
+# Secrets — JANGAN pernah commit, isinya encryption key & API key asli
+backend/.env
+adapter/.env
+
+# Model file — 475MB, gak pernah diedit, gak perlu di-track git.
+# Taro manual dari sumber partner kalau clone repo ini di laptop lain.
+model-service/model/*.safetensors
+model-service/model/*.bin
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Database lokal (data testing, bukan kode)
+backend/judol_blocker.db
+
+# OS/editor
+.DS_Store
+Thumbs.db

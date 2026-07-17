@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Judol Blocker — Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    Background TRANSPARAN by design — ini yang bikin overlay-nya nyatu
+    sama video kamera streamer pas ditumpuk di OBS (Browser Source).
+    Jangan kasih background solid apapun di body/html.
+  -->
+  <div id="alert-stack" class="alert-stack"></div>
+
+  <script src="config.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>

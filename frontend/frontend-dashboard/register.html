@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Judol Blocker — Daftar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page page--narrow">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Judol Blocker</h1>
+          <p class="session-label">Daftarkan overlay Saweria kamu</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="form-card">
+      <h2>Mulai proteksi stream kamu</h2>
+      <p class="form-hint">
+        Paste URL widget overlay Saweria kamu di bawah. Sistem akan otomatis
+        membuat URL overlay pengganti yang sudah dilengkapi filter komentar judi online.
+      </p>
+
+      <form id="register-form">
+        <label for="overlay-url">URL overlay Saweria</label>
+        <input
+          type="text"
+          id="overlay-url"
+          name="overlay-url"
+          placeholder="https://saweria.co/widgets/alert?streamKey=..."
+          required
+        />
+
+        <label for="owner-name">Nama kamu (opsional)</label>
+        <input
+          type="text"
+          id="owner-name"
+          name="owner-name"
+          placeholder="Nama streamer/channel"
+        />
+
+        <button type="submit" id="submit-btn">Daftarkan</button>
+      </form>
+
+      <p id="form-error" class="form-error" hidden></p>
+    </section>
+
+    <section id="result-card" class="result-card" hidden>
+      <h2>Siap dipakai!</h2>
+
+      <div class="result-field">
+        <label>URL overlay pengganti (tempel ini ke OBS, gantikan URL Saweria asli)</label>
+        <div class="copy-row">
+          <input type="text" id="result-overlay-url" readonly />
+          <button type="button" class="copy-btn" data-target="result-overlay-url">Salin</button>
+        </div>
+      </div>
+
+      <div class="result-field">
+        <label>URL dashboard (buat pantau statistik komentar)</label>
+        <div class="copy-row">
+          <input type="text" id="result-dashboard-url" readonly />
+          <button type="button" class="copy-btn" data-target="result-dashboard-url">Salin</button>
+        </div>
+        <a id="open-dashboard-btn" class="open-btn" href="#" target="_blank" rel="noopener">
+          Buka Dashboard →
+        </a>
+      </div>
+
+      <p class="result-note">
+        Simpan kedua URL ini baik-baik. Adapter akan otomatis mulai mendengarkan
+        donasi kamu dalam beberapa detik ke depan.
+      </p>
+    </section>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="register.js"></script>
+</body>
+</html>

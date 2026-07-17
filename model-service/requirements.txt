@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+torch
+transformers
+emoji
+unidecode
+pydantic
+httpx
+websockets
+cryptography
