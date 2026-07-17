@@ -48,3 +48,19 @@ class TimeseriesPoint(BaseModel):
 
 class TimeseriesResponse(BaseModel):
     points: list[TimeseriesPoint]
+
+
+class CommentItem(BaseModel):
+    id: str
+    session_id: str
+    donator: Optional[str]
+    message: str
+    amount: Optional[int]
+    score: float
+    status: str
+    top_word: Optional[str] = None
+    created_at: str
+
+
+class CommentsResponse(BaseModel):
+    comments: list[CommentItem]

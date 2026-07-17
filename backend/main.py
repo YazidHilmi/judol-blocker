@@ -11,7 +11,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 import database
-from routes import ingest, sessions, stats
+from routes import comments, ingest, sessions, stats
 from services.websocket_manager import manager
 
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,7 @@ app.add_middleware(
 app.include_router(ingest.router)
 app.include_router(sessions.router)
 app.include_router(stats.router)
+app.include_router(comments.router)
 
 
 @app.on_event("startup")

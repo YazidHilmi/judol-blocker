@@ -74,14 +74,8 @@ async function loadInitialSummary() {
   }
 }
 
-function addFeedRow(comment) {
-  // Hapus baris "belum ada komentar" kalau masih ada
-  const emptyRow = el.feedBody.querySelector(".feed-empty-row");
-  if (emptyRow) emptyRow.remove();
-
+function buildFeedRowElement(comment) {
   const row = document.createElement("tr");
-  row.className = "feed-row-new";
-
   const statusClass = `status-badge status-badge--${comment.status}`;
   const statusLabel = STATUS_LABEL[comment.status] || comment.status;
 
@@ -93,13 +87,46 @@ function addFeedRow(comment) {
     <td><span class="${statusClass}">${statusLabel}</span></td>
     <td class="col-top-word">${escapeHtml(comment.top_word || "-")}</td>
   `;
+  return row;
+}
 
+function addFeedRow(comment) {
+  // Hapus baris "belum ada komentar" kalau masih ada
+  const emptyRow = el.feedBody.querySelector(".feed-empty-row");
+  if (emptyRow) emptyRow.remove();
+
+  const row = buildFeedRowElement(comment);
+  row.className = "feed-row-new";
   el.feedBody.prepend(row);
 
   // Batasi maksimal 50 baris biar gak berat kalau dashboard dibiarkan lama
   const rows = el.feedBody.querySelectorAll("tr:not(.feed-empty-row)");
   if (rows.length > 50) {
     rows[rows.length - 1].remove();
+  }
+}
+
+async function loadInitialFeed() {
+  if (!sessionId) return;
+  try {
+    const res = await fetch(
+      `${BACKEND_HTTP}/comments?session_id=${encodeURIComponent(sessionId)}&page_size=50`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const comments = data.comments || [];
+    if (comments.length === 0) return;
+
+    const emptyRow = el.feedBody.querySelector(".feed-empty-row");
+    if (emptyRow) emptyRow.remove();
+
+    // Backend udah balikin urutan terbaru-duluan, jadi tinggal appendChild
+    // apa adanya (TANPA animasi "baris baru" — itu cuma buat live event).
+    for (const comment of comments) {
+      el.feedBody.appendChild(buildFeedRowElement(comment));
+    }
+  } catch (err) {
+    console.error("Gagal load histori komentar:", err);
   }
 }
 
@@ -301,6 +328,7 @@ function init() {
   el.sessionLabel.textContent = sessionId;
   loadInitialSummary();
   loadInitialTimeseries();
+  loadInitialFeed();
   connectWebSocket();
 }
 
