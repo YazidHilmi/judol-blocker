@@ -1,8 +1,11 @@
 :root {
-  --accent-safe: #34c281;
-  --accent-safe-bg: rgba(20, 30, 26, 0.92);
-  --accent-danger: #f0475a;
-  --accent-danger-bg: rgba(32, 18, 20, 0.92);
+  --accent-safe: #1f9d76;
+  --accent-safe-bg: rgba(255, 255, 255, 0.97);
+  --accent-danger: #d6484a;
+  --accent-danger-bg: rgba(255, 255, 255, 0.97);
+
+  --text-primary: #1c1c1a;
+  --text-muted: #7a7a74;
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -31,11 +34,11 @@ html, body {
 }
 
 .alert-card {
-  border-radius: 22px;
+  border-radius: 18px;
   padding: 40px 46px;
-  color: #f4f4f4;
+  color: var(--text-primary);
   animation: slide-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 4px rgba(20, 20, 15, 0.06), 0 20px 44px rgba(20, 20, 15, 0.16);
 }
 
 .alert-card.leaving {
@@ -45,13 +48,13 @@ html, body {
 .alert-card--safe {
   background: var(--accent-safe-bg);
   border-left: 10px solid var(--accent-safe);
-  border-radius: 0 22px 22px 0;
+  border-radius: 0 18px 18px 0;
 }
 
 .alert-card--blocked {
   background: var(--accent-danger-bg);
   border-left: 10px solid var(--accent-danger);
-  border-radius: 0 22px 22px 0;
+  border-radius: 0 18px 18px 0;
 }
 
 .alert-top {
@@ -78,26 +81,26 @@ html, body {
 .alert-amount {
   font-family: var(--font-mono);
   font-size: 30px;
-  color: #cfcfcf;
+  color: var(--text-muted);
 }
 
 .alert-message {
   font-size: 34px;
   line-height: 1.4;
   margin: 0;
-  color: #f4f4f4;
+  color: var(--text-primary);
 }
 
 .alert-blocked-label {
   font-size: 32px;
   margin: 0;
-  color: #e8b4ba;
+  color: var(--accent-danger);
 }
 
 .alert-score {
   font-family: var(--font-mono);
   font-size: 25px;
-  color: #a8a8a8;
+  color: var(--text-muted);
   margin-top: 10px;
 }
 

@@ -1,18 +1,21 @@
 :root {
-  --bg: #0d0f12;
-  --surface: #161a20;
-  --surface-raised: #1c2129;
-  --border: #262c35;
-  --text-primary: #e8eaed;
-  --text-muted: #8b93a1;
+  --bg: #f6f4f0;
+  --surface: #ffffff;
+  --surface-raised: #faf8f5;
+  --border: #eceae4;
+  --text-primary: #1c1c1a;
+  --text-muted: #8a8880;
 
-  --accent-safe: #34c281;
-  --accent-safe-bg: rgba(52, 194, 129, 0.12);
-  --accent-warn: #f5a623;
-  --accent-warn-bg: rgba(245, 166, 35, 0.12);
-  --accent-danger: #f0475a;
-  --accent-danger-bg: rgba(240, 71, 90, 0.12);
-  --accent-pulse: #22d3c7;
+  --accent-safe: #1f9d76;
+  --accent-safe-bg: rgba(31, 157, 118, 0.1);
+  --accent-warn: #cc8a1a;
+  --accent-warn-bg: rgba(204, 138, 26, 0.1);
+  --accent-danger: #d6484a;
+  --accent-danger-bg: rgba(214, 72, 74, 0.1);
+  --accent-pulse: #3572e0;
+
+  --shadow-card: 0 1px 2px rgba(30, 25, 15, 0.04), 0 10px 24px rgba(30, 25, 15, 0.07);
+  --shadow-card-hover: 0 1px 2px rgba(30, 25, 15, 0.05), 0 14px 32px rgba(30, 25, 15, 0.09);
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -58,7 +61,7 @@ body {
   height: 10px;
   border-radius: 50%;
   background: var(--accent-pulse);
-  box-shadow: 0 0 0 4px rgba(34, 211, 199, 0.15);
+  box-shadow: 0 0 0 4px rgba(53, 114, 224, 0.15);
   flex-shrink: 0;
 }
 
@@ -103,8 +106,8 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 194, 129, 0.4); }
-  50% { box-shadow: 0 0 0 5px rgba(52, 194, 129, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(31, 157, 118, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(31, 157, 118, 0); }
 }
 
 /* --- Stat cards --- */
@@ -112,7 +115,7 @@ body {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 32px;
 }
 
@@ -124,9 +127,16 @@ body {
 
 .stat-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px 20px;
+  border: none;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
 }
 
 .stat-label {
@@ -162,10 +172,11 @@ body {
 
 .chart-section {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: none;
+  border-radius: 14px;
   overflow: hidden;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .chart-legend {
@@ -204,9 +215,10 @@ body {
 
 .feed {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: none;
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .feed-header {
@@ -293,7 +305,7 @@ body {
 .status-badge {
   display: inline-block;
   padding: 3px 9px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
   font-family: var(--font-mono);
@@ -315,7 +327,7 @@ body {
 }
 
 @keyframes row-enter {
-  0% { background: rgba(34, 211, 199, 0.12); }
+  0% { background: rgba(53, 114, 224, 0.1); }
   100% { background: transparent; }
 }
 
@@ -328,10 +340,11 @@ body {
 .form-card,
 .result-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border: none;
+  border-radius: 16px;
   padding: 28px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .form-card h2,
@@ -367,9 +380,9 @@ body {
 
 #register-form input {
   width: 100%;
-  background: var(--bg);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 10px;
   padding: 12px 14px;
   color: var(--text-primary);
   font-family: var(--font-mono);
@@ -379,22 +392,22 @@ body {
 
 #register-form input::placeholder {
   color: var(--text-muted);
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 #register-form input:focus {
   outline: none;
   border-color: var(--accent-pulse);
-  box-shadow: 0 0 0 3px rgba(34, 211, 199, 0.15);
+  box-shadow: 0 0 0 3px rgba(53, 114, 224, 0.15);
 }
 
 #submit-btn {
   margin-top: 24px;
   padding: 13px 20px;
   border: none;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--accent-pulse);
-  color: #04211f;
+  color: #ffffff;
   font-family: var(--font-display);
   font-size: 14.5px;
   font-weight: 700;
@@ -403,7 +416,7 @@ body {
 }
 
 #submit-btn:hover {
-  box-shadow: 0 6px 20px rgba(34, 211, 199, 0.25);
+  box-shadow: 0 10px 24px rgba(53, 114, 224, 0.3);
   transform: translateY(-1px);
 }
 
@@ -425,13 +438,12 @@ body {
   background: var(--accent-danger-bg);
   color: var(--accent-danger);
   font-size: 13px;
-  border: 1px solid rgba(240, 71, 90, 0.25);
+  border: 1px solid rgba(214, 72, 74, 0.2);
 }
 
 /* Result card dikasih aksen "sukses" (hijau) biar kerasa beda dari form */
 .result-card {
-  border-color: rgba(52, 194, 129, 0.35);
-  box-shadow: 0 0 0 1px rgba(52, 194, 129, 0.08), 0 8px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(31, 157, 118, 0.18);
 }
 
 .result-card h2 {
@@ -458,7 +470,7 @@ body {
 .copy-row input {
   flex: 1;
   min-width: 0;
-  background: var(--bg);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -497,9 +509,9 @@ body {
   gap: 6px;
   margin-top: 12px;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--accent-safe);
-  color: #04231a;
+  color: #ffffff;
   font-family: var(--font-display);
   font-size: 13.5px;
   font-weight: 700;
@@ -508,7 +520,7 @@ body {
 }
 
 .open-btn:hover {
-  box-shadow: 0 6px 20px rgba(52, 194, 129, 0.25);
+  box-shadow: 0 10px 24px rgba(31, 157, 118, 0.3);
   transform: translateY(-1px);
 }
 
