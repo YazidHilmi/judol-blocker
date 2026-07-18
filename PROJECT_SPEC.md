@@ -1,6 +1,6 @@
 # Judol Blocker — Project Spec & Status (Dataathon)
 
-Dokumen kondisi terkini project. Paste ke chat/agent baru biar langsung paham konteks penuh tanpa baca ulang history.
+Dokumen kondisi terkini project. Paste ke chat/agent baru biar langsung paham konteks penuh tanpa baca ulang history. Untuk cara install & jalanin project, lihat [README.md](README.md).
 
 **Terakhir diupdate:** 2026-07-17
 
@@ -14,13 +14,24 @@ Sistem yang mendeteksi & memblokir komentar/pesan donasi bermuatan promosi judi 
 - Role Tyler: **backend** (model dikerjakan partner)
 - Model final: **IndoBERT** base, 2 label (`Normal`=0, `Judol`=1), fine-tuned partner via CRISP-DM pipeline
 
-## Status keseluruhan: SISTEM TERBUKTI JALAN END-TO-END DENGAN DONASI SAWERIA ASLI ✅
+## Status keseluruhan: SISTEM LENGKAP, TERBUKTI JALAN END-TO-END DENGAN DONASI SAWERIA ASLI ✅
 
-Integrasi Saweria asli + OBS **sudah diverifikasi jalan** (2026-07-17) pakai donasi & replay alert beneran, bukan simulasi doang. Sisa kerjaan: fitur explainability (kata pemicu judol) yang lagi dikerjain, + persiapan demo.
+Integrasi Saweria asli + OBS udah diverifikasi jalan pakai donasi & replay alert beneran (bukan simulasi doang). Semua fitur inti + fitur tambahan (explainability, history, idempotent registration, redesign visual) udah selesai. Sisanya tinggal persiapan demo.
 
 ## Git
 
-Project ini **udah jadi git repo** (`git init` di 2026-07-17). Ada 1 commit checkpoint (`"Checkpoint: sistem judol blocker jalan end-to-end..."`) di titik sistem udah kebukti jalan sempurna — kalau ada perubahan berikutnya bikin rusak, `git checkout -- .` buat balikin ke situ, atau `git diff` buat liat apa yang berubah dulu.
+Project ini **udah jadi git repo** (`git init` 2026-07-17). History commit (urut lama→baru):
+
+1. `150584f` — Checkpoint: sistem inti jalan end-to-end (Saweria asli → adapter → backend → overlay/dashboard)
+2. `61d6fba` — Fitur explainability "kata pemicu" (occlusion)
+3. `bab5b70` — Fix jam ketuker 7 jam (timezone bug)
+4. `8c9c3d5` — Endpoint `GET /comments` (history biar tabel gak kosong pas refresh)
+5. `c75aa2c` — `POST /sessions` idempotent (streamKey sama = balikin session lama)
+6. `557769d` — Redesign visual dashboard & overlay → tema terang + drop shadow
+7. `4f80485` — Redesign kartu alert overlay: rounded penuh, strip diganti bar+icon
+8. `5cb2da0` — Format teks alert aman jadi kalimat "X baru saja memberikan RpY"
+
+Kalau ada perubahan berikutnya bikin sistem rusak: `git diff` buat liat apa yang berubah, `git checkout <commit-hash> -- .` buat balik ke checkpoint manapun di atas.
 
 `.gitignore` exclude: `.env` (secret), `venv/`, `node_modules/`, `judol_blocker.db`, dan **file model (`*.safetensors`, 475MB)** — model gak pernah diedit jadi gak perlu di-track, dan kegedean buat git normal (GitHub limit 100MB/file). Kalau clone repo ini di laptop lain, taro manual file model dari partner ke `model-service/model/`.
 
@@ -40,56 +51,60 @@ judol-blocker/
 
 **Prinsip desain:** tiap folder berdiri sendiri, punya venv/node_modules sendiri, jalan di port beda, komunikasi HANYA lewat REST API + WebSocket. Tidak ada dependency antar folder di level filesystem/import.
 
-**Kenapa HTML/JS polos, bukan React:** keputusan sadar demi kecepatan development. Backend gak peduli FE pakai stack apa — kontraknya cuma REST + WebSocket, jadi bisa di-rewrite ke React kapan aja tanpa nyentuh backend.
+**Kenapa HTML/JS polos, bukan React:** keputusan sadar demi kecepatan development. Backend gak peduli FE pakai stack apa — kontraknya cuma REST + WebSocket. Sempat ditawarin ganti ke React pas visual mau di-redesign, tapi diputuskan tetap vanilla — redesign visual itu murni soal CSS, gak butuh framework, dan ganti framework di tengah jalan berisiko ngerusak sistem yang udah kebukti jalan.
+
+**WebSocket, BUKAN webhook** (poin yang sempat bikin bingung): adapter kita yang **connect keluar** ke server Saweria (`wss://events.saweria.co/stream?streamKey=...`) dan "nguping" terus-menerus di situ. Ini kebalikan dari webhook (di mana Saweria yang nembak masuk ke server kita). Konsekuensinya: server kita gak perlu bisa diakses dari internet publik, gak butuh ngrok/domain/tunnel buat testing lokal.
 
 ## Alur bisnis end-to-end
 
 1. Streamer buka `frontend-dashboard/register.html`, paste URL widget overlay Saweria asli (`https://saweria.co/widgets/alert?streamKey=XXXX`)
-2. `POST /sessions` extract `streamKey`, **enkripsi** (Fernet), simpan ke DB dengan `session_id` baru, balikin URL overlay pengganti + URL dashboard (otomatis nempel `?session=<id>`). Halaman hasil punya tombol **"Buka Dashboard →"** (buka tab baru) + tombol Salin
+2. `POST /sessions` extract `streamKey`, **enkripsi** (Fernet), simpan ke DB. **Idempotent**: kalau streamKey ini udah pernah didaftarin, balikin `session_id` yang LAMA (bukan bikin baru) — jadi kalau streamer lupa link dashboard, tinggal daftar ulang pakai streamKey Saweria yang sama buat "recover". Balikin URL overlay pengganti + URL dashboard (otomatis nempel `?session=<id>`). Halaman hasil punya tombol **"Buka Dashboard →"** (buka tab baru) + tombol Salin
 3. Streamer tempel URL overlay pengganti ke OBS (menggantikan URL Saweria default)
 4. `adapter/` (Node.js) **polling** ke `GET /internal/sessions/active` tiap 10 detik (dilindungi API key), otomatis connect ke SEMUA session terdaftar — streamer baru daftar → adapter otomatis dengar donasinya **tanpa restart**
-5. Adapter pakai library `saweria` (npm) listen event `donations` real-time, forward tiap donasi ke `POST /ingest`
-6. Backend cek `message` DAN `donator` ke model-service terpisah, ambil skor **tertinggi** (nangkep username judol kayak `SlotGacor77`)
+5. Adapter connect manual pakai `ws` ke `wss://events.saweria.co/stream?streamKey=...` (BUKAN pakai class `Client` dari package npm `saweria` — ada bug, lihat bagian bug). Nangkep event tipe `"donations"` (donasi baru) DAN `"donation"` (replay alert). Dedup donasi yang sama dalam window 8 detik.
+6. Forward tiap donasi ke `POST /ingest`. Backend cek `message` DAN `donator` ke model-service terpisah, ambil skor **tertinggi** (nangkep username judol kayak `SlotGacor77`)
 7. **Decision logic (2 status, TIDAK ADA review manual):**
    - `judol_score >= 0.50` → `diblokir`
    - `judol_score < 0.50` → `aman`
-8. Simpan ke DB, broadcast via WebSocket event `comment_processed` ke overlay + dashboard
-9. **Overlay** (OBS): alert hijau kalau `aman` (pesan asli tampil), banner merah kalau `diblokir` (pesan asli **disembunyikan**, cuma tampil skor — sengaja, biar konten judol gak ke-broadcast ke penonton)
-10. **Dashboard**: 4 kartu angka + grafik tren real-time + tabel real-time, filter per `session_id` di URL
+8. Kalau `diblokir`: jalankan **explainability (occlusion)** — cari kata yang paling berpengaruh ke skor, simpan sebagai `top_word` (maks 3 kata, threshold drop skor 20%)
+9. Simpan ke DB, broadcast via WebSocket event `comment_processed` ke overlay + dashboard
+10. **Overlay** (OBS): kartu putih rounded dengan drop shadow. Alert **aman**: teks "`{donator}` baru saja memberikan `Rp{amount}`" + pesan asli tampil, icon centang hijau. Alert **diblokir**: pesan asli **disembunyikan** (cuma skor yang tampil), icon silang merah — sengaja, biar konten judol gak ke-broadcast ke penonton
+11. **Dashboard**: 4 kartu angka + grafik tren real-time + tabel real-time (dengan kolom "Kata Pemicu"), filter per `session_id` di URL. Tabel load history lama lewat `GET /comments` pas dibuka, gak kosong pas di-refresh.
 
 ## Kenapa "per user 1 dashboard" tanpa login
 
-Keputusan sadar: pakai **capability URL** (kayak Google Docs share-link), bukan akun+password. `session_id` = UUID gak ketebak. Cukup aman untuk scope dataathon, jauh hemat waktu. Trade-off: link bocor = orang lain bisa lihat (read-only). Sudah dipertimbangkan menambah sistem auth penuh — diputuskan **tidak worth** untuk dataathon (effort ~1,5-2 hari, nilai kecil buat kompetisi).
+Keputusan sadar: pakai **capability URL** (kayak Google Docs share-link), bukan akun+password. `session_id` = UUID gak ketebak. Cukup aman untuk scope dataathon, jauh hemat waktu. Trade-off: link bocor = orang lain bisa lihat (read-only) — TAPI streamKey asli, akun Saweria, dan data finansial TIDAK PERNAH ke-expose lewat URL manapun (streamKey selalu terenkripsi di DB, cuma di-decrypt server-side buat adapter). Sudah dipertimbangkan menambah sistem auth penuh — diputuskan **tidak worth** untuk dataathon (effort ~1,5-2 hari, nilai kecil buat kompetisi, dan masalah "lupa session" udah kesolve lewat idempotent registration yang numpang ke auth Saweria yang udah ada).
 
 ---
 
 ## Status detail per komponen (semua SELESAI)
 
 ### Backend (`backend/`)
-- `database.py` — skema SQLite: `sessions` (id, stream_key terenkripsi, platform, owner_name, created_at) + `comments_log` (id, session_id, donator, message, amount, score, status, created_at). Fungsi `get_summary_stats()` + `get_timeseries_stats()` (bucket per menit buat grafik)
+- `database.py` — skema SQLite: `sessions` (id, stream_key terenkripsi, platform, owner_name, created_at) + `comments_log` (id, session_id, donator, message, amount, score, status, **top_word**, created_at, dengan migrasi ALTER TABLE otomatis). Fungsi: `get_summary_stats()`, `get_timeseries_stats()` (bucket per menit buat grafik), `get_comments()` (history), `find_session_by_stream_key()` (buat idempotent registration)
 - `services/decision_logic.py` — 2 status
-- `services/model_client.py` — `get_combined_judol_score()` cek message + donator
+- `services/model_client.py` — `get_combined_judol_score()` (cek message + donator), `explain_top_word()` (occlusion, threshold 20%, maks 3 kata)
 - `services/crypto_utils.py` — enkripsi/dekripsi streamKey (Fernet)
 - `services/websocket_manager.py` — broadcast `comment_processed`
-- `routes/ingest.py` — endpoint inti (model → decision → DB → websocket)
-- `routes/sessions.py` — `POST /sessions` + `GET /internal/sessions/active` (dilindungi API key)
+- `routes/ingest.py` — endpoint inti (model → decision → occlusion kalau diblokir → DB → websocket)
+- `routes/sessions.py` — `POST /sessions` (idempotent) + `GET /internal/sessions/active` (dilindungi API key)
 - `routes/stats.py` — `GET /stats/summary` + `GET /stats/timeseries`
+- `routes/comments.py` — `GET /comments` (history komentar, buat isi tabel dashboard pas refresh)
 - `simulator.py` — kirim data dummy ke `/ingest` buat testing tanpa Saweria
 
 ### Frontend dashboard (`frontend/frontend-dashboard/`)
-- `index.html` + `dashboard.js` + `style.css` — 4 kartu angka + **grafik tren real-time** (canvas vanilla, tanpa library eksternal) + tabel real-time
-- `register.html` + `register.js` — form daftar streamer, sudah di-style penuh (card layout, tombol "Buka Dashboard")
-- `config.js` — config terpusat port/URL (biar gak hardcoded di banyak file)
+- `index.html` + `dashboard.js` + `style.css` — **tema terang** (background krem/putih, kartu drop-shadow), 4 kartu angka + grafik tren real-time (canvas vanilla, warna baca dari CSS var otomatis ngikut tema) + tabel real-time (load history dari `/comments` pas buka + kolom "Kata Pemicu")
+- `register.html` + `register.js` — form daftar streamer, tema terang, tombol "Buka Dashboard"
+- `config.js` — config terpusat port/URL
 
 ### Frontend overlay (`frontend/frontend-overlay/`)
-- `index.html` + `overlay.js` + `style.css` — 2-state alert (aman/diblokir), background transparan buat OBS
+- `index.html` + `overlay.js` + `style.css` — background TETAP transparan (wajib buat OBS), kartu alert **putih rounded penuh dengan drop shadow**, bar aksen warna tipis di tepi atas + icon badge bulat (centang/silang) sebagai pengganti garis strip. Alert aman formatnya kalimat "`{donator}` baru saja memberikan `Rp{amount}`"
 - `config.js` — config terpusat
 
 ### Adapter (`adapter/`)
-- `index.js` — Node.js, multi-session (polling based), forward donasi ke `/ingest`. **PENTING:** TIDAK pakai class `Client` dari package npm `saweria` — connect manual pakai `ws` langsung ke `wss://events.saweria.co/stream?streamKey=...`, karena library `saweria` v2.0.1 ada bug (lihat bagian bug di bawah)
-- `test-fake-donation.js` — kirim donasi palsu via `sendFakeDonation()` buat testing (masih pakai package `saweria` buat bagian ini doang, cuma buat trigger fake donation, bukan buat listen)
+- `index.js` — Node.js, multi-session (polling based), forward donasi ke `/ingest`. **PENTING:** TIDAK pakai class `Client` dari package npm `saweria` — connect manual pakai `ws` langsung ke `wss://events.saweria.co/stream?streamKey=...`, karena library `saweria` v2.0.1 ada bug (lihat bagian bug)
+- `test-fake-donation.js` — kirim donasi palsu via `sendFakeDonation()` (masih pakai package `saweria`, cuma buat trigger, bukan listen — dan butuh login email/password Saweria buat jalan di v2, jadi lebih praktis pakai fitur "Replay Alert" di dashboard Saweria buat testing gratis)
 - `package.json`, `.env`
-- Dedup donasi: kalau donation id yang sama masuk berkali-kali dalam **8 detik**, cuma diproses sekali (Saweria replay/spam-klik bisa ngirim event sama berkali-kali beruntun)
+- Dedup donasi: donation id yang sama dalam window **8 detik** cuma diproses sekali
 
 ### Model service (`model-service/`)
 - `model_service.py` — FastAPI, endpoint `/predict` + `/health`, preprocessing identik dengan training (`clean_text` → `normalize_emoji` → `normalize_unicode`)
@@ -101,10 +116,11 @@ Keputusan sadar: pakai **capability URL** (kayak Google Docs share-link), bukan 
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| POST | `/sessions` | Extract & simpan streamKey terenkripsi, balikin session_id + URL overlay pengganti |
-| POST | `/ingest` | Terima komentar, panggil model, decision logic, simpan DB, broadcast WS |
+| POST | `/sessions` | Extract & simpan streamKey terenkripsi (idempotent), balikin session_id + URL overlay pengganti |
+| POST | `/ingest` | Terima komentar, panggil model, decision logic, occlusion (kalau diblokir), simpan DB, broadcast WS |
 | GET | `/stats/summary?session_id=` | `{total, terdeteksi_judi, diblokir, aman}` |
 | GET | `/stats/timeseries?session_id=&interval_minutes=1` | Data per bucket waktu buat grafik tren |
+| GET | `/comments?session_id=&status=&page=&page_size=` | History komentar (terbaru duluan), buat isi tabel dashboard |
 | GET | `/internal/sessions/active` | (API key) daftar session aktif + streamKey ter-decrypt, dipakai adapter |
 | WS | `/ws` | Broadcast event `comment_processed` ke overlay + dashboard |
 
@@ -134,6 +150,8 @@ INTERNAL_API_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
 
 > Catatan: dashboard di **3002** (bukan 3000 — 3000 sempat kena block). Cek `config.js` kalau ganti port.
 
+**Peringatan penting:** kalau service dijalankan di terminal integrated VSCode, **nutup VSCode bakal ikut matiin semua service itu**. Buat sesi kerja panjang, lebih aman jalanin di PowerShell/terminal biasa yang independen dari VSCode.
+
 ## Cara testing cepat (tanpa Saweria/OBS asli)
 
 1. Jalankan model-service + backend (2 terminal)
@@ -141,20 +159,27 @@ INTERNAL_API_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
 3. Buka `frontend-dashboard/index.html?session=<id>` — angka, grafik & tabel update real-time
 4. Buka `frontend-overlay/index.html?session=<id>` — alert muncul
 
+## Cara testing gratis pakai data Saweria asli (gak perlu bayar/donasi beneran)
+
+Di dashboard Saweria (dashboard.saweria.co), halaman **Daftar Transaksi**, tiap transaksi lama ada tombol **"Replay Alert"** — ini ngirim ulang event donasi yang sama lewat WebSocket yang sama persis kayak donasi asli, **gratis**, gak perlu transfer lagi. Ini cara paling murah buat re-test adapter/backend/overlay tanpa keluar duit terus-terusan.
+
 ---
 
 ## Bug yang sudah difix (sesi 2026-07-16 & 2026-07-17)
 
 **Sesi 2026-07-16:**
 1. `simulator.py` crash di Windows console kalau komentar ada emoji → force stdout UTF-8
-2. **KRITIS:** `frontend-overlay/index.html` gak load `config.js` → overlay gak pernah connect WebSocket (bakal blank total di OBS). Fixed: tambah `<script src="config.js">`
+2. **KRITIS:** `frontend-overlay/index.html` gak load `config.js` → overlay gak pernah connect WebSocket. Fixed: tambah `<script src="config.js">`
 3. `adapter/index.js` + `test-fake-donation.js` upgrade package `saweria` v1.3.2 → v2.0.1 (server lama `stream.saweria.co` udah mati, pindah ke `events.saweria.co`)
 
 **Sesi 2026-07-17 (paling kritis — donasi Saweria asli gak pernah kedetect):**
-4. **KRITIS PALING BESAR:** package npm `saweria@2.0.1` ada bug internal — dia cek `data.type === "donation"` (singular), padahal Saweria beneran ngirim `data.type === "donations"` (plural, ada 's') buat donasi baru. Gara-gara typo 1 huruf di library itu, **semua donasi asli diam-diam diabaikan, gak ada error/log sama sekali**. Ketauan cuma lewat raw WebSocket debug listener manual (connect langsung pakai `ws`, log semua raw message). Fix: `adapter/index.js` sekarang connect manual (skip class `Client`), dan nangkep **DUA-DUANYA** (`"donation"` dipakai buat event replay alert, `"donations"` dipakai buat donasi baru asli)
-5. `frontend-overlay/config.js` + `frontend-dashboard/config.js` port ke-ubah ke `8002` (harusnya `8000`) — entah kenapa/kapan berubah, gak ketauan sumbernya. Overlay/dashboard connect ke port kosong, WebSocket gak pernah nyambung padahal backend sehat. Fixed balikin ke `8000`.
-6. Banyak proses `node.exe` zombie numpuk dari berkali-kali restart testing — bikin bingung koneksi mana yang aktif. Solusi: `taskkill /F /IM node.exe` buat bersihin total sebelum restart adapter.
-7. Duplikat registrasi session dengan streamKey asli yang sama (sampai 3-4x) bikin backend overload (banyak WS connection + model-service call bersamaan → timeout). Dibersihin, disisain 1 session aktif aja.
+4. **KRITIS PALING BESAR:** package npm `saweria@2.0.1` ada bug internal — dia cek `data.type === "donation"` (singular), padahal Saweria beneran ngirim `data.type === "donations"` (plural) buat donasi baru, dan `"donation"` (singular) khusus buat event **replay alert**. Gara-gara library cuma ngecek 1 dari 2 kemungkinan, donasi asli diam-diam diabaikan tanpa error. Ketauan lewat raw WebSocket debug listener manual. Fix: `adapter/index.js` connect manual (skip class `Client`), nangkep **DUA-DUANYA**.
+5. `frontend-overlay/config.js` + `frontend-dashboard/config.js` port ke-ubah ke `8002` (harusnya `8000`), sumbernya gak ketauan. Fixed balikin ke `8000`.
+6. Banyak proses `node.exe` zombie numpuk dari berkali-kali restart testing. Solusi: `taskkill /F /IM node.exe` sebelum restart adapter.
+7. Duplikat registrasi session dengan streamKey asli yang sama (3-6x) bikin backend overload. Dibersihin manual, lalu dicegah permanen lewat idempotent registration (lihat bug/fitur berikutnya).
+8. Tabel "Komentar real-time" di dashboard kosong tiap di-refresh (cuma nampung WebSocket event baru, gak fetch history). Fixed: endpoint `GET /comments` baru + `loadInitialFeed()`.
+9. Jam di tabel & grafik dashboard ketuker 7 jam dari WIB asli — backend simpan `datetime.utcnow()` tanpa suffix `Z`, browser nganggep itu jam lokal apa adanya. Fixed di `formatTime()`/`bucketLabel()` (dashboard.js), tambah `Z` sebelum di-parse jadi `Date`.
+10. `POST /sessions` selalu bikin session baru walau streamKey sama persis → numpuk session duplikat. Fixed: `find_session_by_stream_key()`, bikin endpoint idempotent.
 
 **Cara debug yang kepake buat nemuin bug #4** (berguna kalau ada masalah serupa lagi): bikin script Node.js kecil pakai package `ws` langsung, connect ke `wss://events.saweria.co/stream?streamKey=<key>`, log SEMUA raw message yang masuk apa adanya (tanpa lewat library `saweria`). Ini nunjukin persis format asli yang dikirim Saweria, gak ketebak dari baca kode doang.
 
@@ -168,28 +193,19 @@ Format standar HuggingFace `save_pretrained()`. `training_args.bin` tidak dipaka
 
 ---
 
-## Yang udah kebukti jalan (2026-07-17, pakai Saweria asli + OBS beneran)
+## Yang belum kelar / perlu diperiksa
 
-- ✅ Daftar via `register.html` pakai streamKey Saweria asli
-- ✅ Adapter connect ke Saweria asli (`wss://events.saweria.co/stream`), nangkep donasi asli DAN replay alert
-- ✅ Donasi asli (`hilmialam`, "hari ini bosku, maxwin auto jp") berhasil diklasifikasi diblokir, score ~100%
-- ✅ Overlay OBS nampilin alert dari data Saweria asli (bukan simulasi) — dites pakai Browser Source beneran + webcam
-- ✅ Dashboard real-time (kartu, grafik, tabel) update dari data asli
-- ✅ Ukuran alert overlay udah digedein buat kanvas 1920x1080 (awalnya didesain kekecilan buat testing kecil)
-
-## Sedang dikerjakan
-
-1. **🟡 Fitur explainability "kata pemicu"** — nambah kolom baru di tabel dashboard nunjukin kata yang paling kuat bikin komentar terdeteksi judol. Metode: **occlusion** (buang kata satu-satu, lihat penurunan skor terbesar), bukan SHAP/Integrated Gradients (terlalu berat buat model-service 1-worker CPU). Cuma jalan buat komentar `status=diblokir` (skip yang aman). Ambil sampai 3 kata kalau penurunan skornya di atas threshold **20%**, kalau cuma 1 kata yang dominan ya tampil 1 aja. **Sengaja gak ditampilin di overlay** (cuma dashboard) — biar gak bocorin sebagian kata judol ke penonton lewat overlay publik.
-   - Rencana perubahan: `model_client.py` (fungsi `explain_top_word()`), `ingest.py`, `database.py` (kolom baru `top_word`), `models.py`, `dashboard.js`+`index.html` (kolom baru "Kata Pemicu")
+1. **🟡 Latensi klasifikasi belum diukur dengan valid** — sempat kelihatan lambat (~2.7 detik per komentar) pas dites, tapi pengukuran itu kejadian pas server lagi crash (VSCode ketutup), jadi datanya gak reliable. Perlu diukur ulang bersih. Kalau beneran lambat, coba dulu opsi murah (cek CPU vs GPU, kurangin `MAX_LENGTH`, batesin jumlah kata yang dicek occlusion) SEBELUM mikir ganti model — ganti model itu keputusan besar yang nyentuh wilayah partner (perlu retraining ulang, gak bisa asal ganti ke model lain yang belum pernah dilatih buat tugas ini).
 2. **🟢 Persiapan demo:** skenario komentar, jawaban pertanyaan juri, slide/narasi
 
 ## Keputusan desain final (jangan diulang tanya)
 
 - **2 status saja** (aman/diblokir), TIDAK ADA review manual
-- **Tanpa login**, capability URL (session_id di query param)
-- **HTML/JS polos** untuk FE (bukan React)
+- **Tanpa login**, capability URL (session_id di query param) + idempotent registration sebagai mekanisme "recovery"
+- **HTML/JS polos** untuk FE (bukan React) — termasuk pas redesign visual, tetap vanilla CSS
 - **SQLite** untuk dev, bisa upgrade PostgreSQL (query kompatibel)
 - **Grafik tren real-time per menit** (bukan tren harian) — pakai canvas vanilla, zero dependency biar aman demo offline
+- **Explainability pakai occlusion**, bukan SHAP/Integrated Gradients — jauh lebih murah komputasi buat model-service 1-worker CPU
 - **Model service dari file lokal**, tidak upload ke HuggingFace Hub
 - **Semua bisa jalan 100% lokal** untuk demo — integrasi Saweria pakai WebSocket outbound (bukan webhook inbound), gak butuh domain publik
 
@@ -199,3 +215,4 @@ Format standar HuggingFace `save_pretrained()`. `training_args.bin` tidak dipaka
 - Suka feedback jujur/blak-blakan termasuk soal kualitas visual/desain
 - Sering perlu diingetin balik ke blocker yang belum selesai (suka skip pertanyaan debugging lalu lanjut topik lain)
 - Menghargai dikasih tau jelas file mana yang perlu ditimpa/dipindah setelah ada perubahan
+- Suka nanya "bisa gak pake X" (framework, arsitektur alternatif) sebelum eksekusi — jawab jujur dengan trade-off, jangan langsung nolak atau langsung iyain
